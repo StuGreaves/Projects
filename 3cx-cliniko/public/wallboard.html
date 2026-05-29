@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cliniko Caller ID – Reception Wallboard</title>
+<style>
+  :root {
+    --bg:       #0f172a;
+    --surface:  #1e293b;
+    --surface2: #273348;
+    --border:   #334155;
+    --accent:   #38bdf8;
+    --accent2:  #818cf8;
+    --green:    #34d399;
+    --amber:    #fbbf24;
+    --red:      #f87171;
+    --text:     #f1f5f9;
+    --muted:    #94a3b8;
+    --radius:   12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .topbar h1 { font-size: 14px; font-weight: 700; letter-spacing: .5px; }
+  .topbar h1 span { color: var(--accent); }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    display: inline-block; margin-right: 6px;
+  }
+  .status-dot.connected    { background: var(--green); box-shadow: 0 0 0 3px rgba(52,211,153,.25); }
+  .status-dot.disconnected { background: var(--red);   box-shadow: 0 0 0 3px rgba(248,113,113,.25); }
+  #status-text { font-size: 12px; color: var(--muted); display: flex; align-items: center; }
+
+  /* ── Main content ── */
+  .main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  /* ── Idle state ── */
+  #idle {
+    text-align: center;
+  }
+  .idle-icon {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+  }
+  .idle-icon svg { width: 32px; height: 32px; fill: var(--muted); }
+  #idle h2 { font-size: 18px; color: var(--muted); font-weight: 500; }
+  #idle p  { font-size: 13px; color: var(--border); margin-top: 6px; }
+
+  /* ── Call card ── */
+  #call-card {
+    display: none;
+    width: 100%; max-width: 520px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.5);
+    animation: slideIn .35s cubic-bezier(.22,1,.36,1);
+  }
+  @keyframes slideIn {
+    from { opacity:0; transform: translateY(20px) scale(.97); }
+    to   { opacity:1; transform: translateY(0)    scale(1); }
+  }
+
+  /* Card header */
+  .card-header {
+    background: linear-gradient(135deg, #0c4a6e 0%, #1e293b 100%);
+    padding: 18px 22px;
+    display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .call-ring {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    animation: ring 1.4s ease infinite;
+  }
+  @keyframes ring {
+    0%,100% { box-shadow: 0 0 0 0   rgba(52,211,153,.6); }
+    50%      { box-shadow: 0 0 0 12px rgba(52,211,153,0); }
+  }
+  .call-ring svg { width:20px; height:20px; fill:#fff; }
+  .card-header-text h2  { font-size: 15px; font-weight: 700; }
+  .card-header-text p   { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .card-header-text .num { color: var(--accent); font-size: 13px; letter-spacing: .5px; }
+
+  /* Not found */
+  #not-found-body { padding: 32px; text-align: center; }
+  #not-found-body .big { font-size: 36px; margin-bottom: 10px; }
+  #not-found-body h3   { font-size: 16px; }
+  #not-found-body p    { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .btn {
+    display: inline-block; padding: 9px 22px;
+    background: var(--accent); color: #0c1929;
+    border-radius: 7px; font-size: 13px; font-weight: 700;
+    text-decoration: none; border: none; cursor: pointer; margin-top: 14px;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-sm { padding: 6px 14px; font-size: 12px; }
+  .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+  /* Patient body */
+  #patient-body { padding: 22px; display: none; }
+
+  .patient-row {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+  }
+  .avatar {
+    width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: #fff;
+  }
+  .patient-row h3 { font-size: 20px; font-weight: 700; }
+  .patient-row p  { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;
+  }
+  .detail-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+  }
+  .detail-item .lbl { font-size: 11px; color: var(--muted); }
+  .detail-item .val { font-size: 13px; font-weight: 600; margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .section-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  .appt {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .appt-date { text-align: center; min-width: 42px;
+    background: var(--bg); border-radius: 6px; padding: 4px 6px;
+    border: 1px solid var(--border); }
+  .appt-date .dd { font-size: 16px; font-weight: 700; line-height: 1; }
+  .appt-date .mm { font-size: 10px; color: var(--muted); }
+  .appt-info .type { font-size: 13px; font-weight: 600; }
+  .appt-info .prac { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+  .badge-green { background:#14532d33; color:#86efac; border:1px solid #14532d66; }
+  .badge-red   { background:#7f1d1d33; color:#fca5a5; border:1px solid #7f1d1d66; }
+  .badge-amber { background:#78350f33; color:#fde68a; border:1px solid #78350f66; }
+
+  .card-footer {
+    padding: 14px 22px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px;
+  }
+  .card-footer .btn { flex: 1; text-align: center; }
+
+  /* Dismiss timer bar */
+  .timer-bar {
+    height: 3px; background: var(--accent);
+    transform-origin: left;
+    animation: shrink var(--duration, 30s) linear forwards;
+  }
+  @keyframes shrink { to { transform: scaleX(0); } }
+
+  /* History */
+  .history-section { margin-top: 24px; }
+  .history-section h3 { font-size: 12px; color: var(--muted); margin-bottom: 10px; letter-spacing: .5px; }
+  .history-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 6px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; transition: border-color .15s;
+  }
+  .history-item:hover { border-color: var(--accent); }
+  .history-item .hi-name { font-size: 13px; font-weight: 600; }
+  .history-item .hi-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .history-item .hi-time { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <h1>Cliniko <span>Caller ID</span> — Reception Wallboard</h1>
+  <div id="status-text">
+    <span class="status-dot disconnected" id="status-dot"></span>
+    <span id="status-label">Connecting…</span>
+  </div>
+</div>
+
+<!-- Main content area -->
+<div class="main">
+
+  <!-- Idle placeholder -->
+  <div id="idle">
+    <div class="idle-icon">
+      <svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+    </div>
+    <h2>Waiting for incoming calls…</h2>
+    <p>Patient details will appear here automatically when the phone rings.</p>
+  </div>
+
+  <!-- Call card (shown on incoming call) -->
+  <div id="call-card">
+    <div class="card" id="card-inner">
+      <!-- Animated timer bar at very top -->
+      <div class="timer-bar" id="timer-bar" style="--duration:30s"></div>
+
+      <!-- Card header -->
+      <div class="card-header">
+        <div class="call-ring">
+          <svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+        </div>
+        <div class="card-header-text">
+          <h2>Incoming Call</h2>
+          <p class="num" id="hdr-number">—</p>
+        </div>
+      </div>
+
+      <!-- Not found body -->
+      <div id="not-found-body">
+        <div class="big">🔍</div>
+        <h3>No patient found in Cliniko</h3>
+        <p id="nf-number">—</p>
+        <a id="new-patient-btn" href="https://app.cliniko.com/patients/new" target="_blank" class="btn btn-sm" style="margin-right:6px">+ New Patient</a>
+        <button class="btn btn-sm btn-outline" onclick="dismiss()">Dismiss</button>
+      </div>
+
+      <!-- Patient found body -->
+      <div id="patient-body">
+        <div class="patient-row">
+          <div class="avatar" id="avatar">?</div>
+          <div>
+            <h3 id="pt-name">—</h3>
+            <p id="pt-meta">—</p>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-item"><div class="lbl">Date of Birth</div><div class="val" id="pt-dob">—</div></div>
+          <div class="detail-item"><div class="lbl">Gender</div><div class="val" id="pt-gender">—</div></div>
+          <div class="detail-item" style="grid-column:1/-1"><div class="lbl">Email</div><div class="val" id="pt-email">—</div></div>
+        </div>
+
+        <div id="appt-section">
+          <div class="section-title">Recent / Upcoming Appointments</div>
+          <div id="appt-list"></div>
+        </div>
+      </div>
+
+      <!-- Card footer -->
+      <div class="card-footer" id="card-footer" style="display:none">
+        <a id="open-cliniko" href="#" target="_blank" class="btn">Open in Cliniko</a>
+        <button class="btn btn-outline" onclick="dismiss()">Dismiss</button>
+      </div>
+    </div>
+
+    <!-- Call history -->
+    <div class="history-section" id="history-section" style="display:none">
+      <h3>Earlier calls this session</h3>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function formatApptDate(iso) {
+  const d = new Date(iso);
+  return {
+    dd:   d.getDate(),
+    mm:   d.toLocaleDateString('en-GB', { month:'short' }),
+    time: d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }),
+  };
+}
+
+function badgeHtml(status) {
+  const map = { Booked:'badge-green', DNA:'badge-red', Cancelled:'badge-amber' };
+  return `<span class="badge ${map[status]||'badge-green'}">${status}</span>`;
+}
+
+// ── Call history ─────────────────────────────────────────────────────────────
+
+const history = [];
+
+function addToHistory(data) {
+  history.unshift({ ts: new Date(), data });
+  if (history.length > 6) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  if (history.length <= 1) return;
+  const sec = document.getElementById('history-section');
+  const list = document.getElementById('history-list');
+  sec.style.display = 'block';
+  list.innerHTML = history.slice(1).map((h, i) => {
+    const label = h.data.found
+      ? h.data.patient.fullName
+      : `Unknown — ${h.data.number}`;
+    const age = Math.round((Date.now() - h.ts) / 60000);
+    return `<div class="history-item" onclick="showCall(history[${i+1}].data)">
+      <div>
+        <div class="hi-name">${label}</div>
+        <div class="hi-meta">${h.data.number}</div>
+      </div>
+      <div class="hi-time">${age < 1 ? 'just now' : age + 'm ago'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Display logic ─────────────────────────────────────────────────────────────
+
+let dismissTimer = null;
+
+function dismiss() {
+  clearTimeout(dismissTimer);
+  document.getElementById('call-card').style.display = 'none';
+  document.getElementById('idle').style.display      = 'block';
+}
+
+function showCall(data) {
+  clearTimeout(dismissTimer);
+
+  document.getElementById('idle').style.display      = 'none';
+  document.getElementById('call-card').style.display = 'block';
+
+  document.getElementById('hdr-number').textContent = data.number || 'Unknown';
+
+  // Reset timer bar animation
+  const bar = document.getElementById('timer-bar');
+  bar.style.animation = 'none';
+  bar.offsetHeight; // reflow
+  bar.style.animation = '';
+
+  if (!data.found) {
+    document.getElementById('not-found-body').style.display = 'block';
+    document.getElementById('patient-body').style.display   = 'none';
+    document.getElementById('card-footer').style.display    = 'none';
+    document.getElementById('nf-number').textContent = data.number;
+    // Auto-dismiss after 30s
+    dismissTimer = setTimeout(dismiss, 30000);
+    return;
+  }
+
+  const p = data.patient;
+  document.getElementById('not-found-body').style.display = 'none';
+  document.getElementById('patient-body').style.display   = 'block';
+  document.getElementById('card-footer').style.display    = 'flex';
+
+  // Avatar
+  const initials = `${p.firstName?.[0]||''}${p.lastName?.[0]||''}`.toUpperCase();
+  document.getElementById('avatar').textContent = initials || '?';
+
+  document.getElementById('pt-name').textContent   = p.fullName;
+  document.getElementById('pt-dob').textContent    = formatDate(p.dob) || '—';
+  document.getElementById('pt-gender').textContent = p.gender || '—';
+  document.getElementById('pt-email').textContent  = p.email  || '—';
+
+  // Age + meta
+  let meta = [];
+  if (p.dob) {
+    const age = Math.floor((Date.now() - new Date(p.dob)) / 31557600000);
+    meta.push(`Age ${age}`);
+  }
+  if (data.allMatches > 1) meta.push(`+${data.allMatches - 1} other match`);
+  document.getElementById('pt-meta').textContent = meta.join(' · ') || 'Patient';
+
+  // Appointments
+  const list = document.getElementById('appt-list');
+  const sec  = document.getElementById('appt-section');
+  if (data.appointments?.length) {
+    sec.style.display = 'block';
+    list.innerHTML = data.appointments.map(a => {
+      const d = formatApptDate(a.startsAt);
+      return `<div class="appt">
+        <div class="appt-date"><div class="dd">${d.dd}</div><div class="mm">${d.mm}</div></div>
+        <div class="appt-info">
+          <div class="type">${a.type||'Appointment'}${badgeHtml(a.status)}</div>
+          <div class="prac">${d.time}${a.practitioner ? ' · '+a.practitioner : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    sec.style.display = 'none';
+  }
+
+  document.getElementById('open-cliniko').href = p.profileUrl;
+
+  // Auto-dismiss after 60s if not interacted with
+  dismissTimer = setTimeout(dismiss, 60000);
+}
+
+// ── SSE connection ────────────────────────────────────────────────────────────
+
+const dot   = document.getElementById('status-dot');
+const label = document.getElementById('status-label');
+
+function connect() {
+  const es = new EventSource('/events');
+
+  es.onopen = () => {
+    dot.className   = 'status-dot connected';
+    label.textContent = 'Connected — waiting for calls';
+  };
+
+  es.addEventListener('call', e => {
+    const data = JSON.parse(e.data);
+    addToHistory(data);
+    showCall(data);
+  });
+
+  es.onerror = () => {
+    dot.className   = 'status-dot disconnected';
+    label.textContent = 'Reconnecting…';
+    es.close();
+    setTimeout(connect, 4000); // reconnect after 4s
+  };
+}
+
+connect();
+</script>
+</body>
+</html>

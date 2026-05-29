@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  3CX CRM Integration Template — Cliniko Patient Lookup
+  =====================================================
+  HOW TO INSTALL:
+  1. In the 3CX Management Console, go to:
+     Settings → CRM Integration → Add New Template
+  2. Click "Import" and upload this file
+     OR paste the contents manually.
+  3. Set the Server URL fields to your actual server IP/hostname.
+
+  IMPORTANT: Replace YOUR_SERVER_IP:3000 with your actual server address.
+-->
+<Crm>
+  <Name>Cliniko Patient Lookup</Name>
+  <Version>1</Version>
+
+  <!-- Called on every incoming external call. -->
+  <!-- Returns the patient's name so 3CX can display it on the phone. -->
+  <Lookup>
+    <LookupUrl>http://YOUR_SERVER_IP:3000/crm-lookup?CallerNumber=[CallerNumber]&amp;CallType=Inbound</LookupUrl>
+    <LookupMethod>GET</LookupMethod>
+
+    <!-- Map the JSON response fields to 3CX contact fields -->
+    <ContactsRoot>contacts</ContactsRoot>
+    <ContactFields>
+      <ContactField>
+        <CrmField>id</CrmField>
+        <3cxField>id</3cxField>
+      </ContactField>
+      <ContactField>
+        <CrmField>firstName</CrmField>
+        <3cxField>firstName</3cxField>
+      </ContactField>
+      <ContactField>
+        <CrmField>lastName</CrmField>
+        <3cxField>lastName</3cxField>
+      </ContactField>
+      <ContactField>
+        <CrmField>contactUrl</CrmField>
+        <3cxField>contactUrl</3cxField>
+      </ContactField>
+    </ContactFields>
+  </Lookup>
+
+  <!-- Do not sync contacts back to 3CX phonebook (read-only) -->
+  <CreateContact>false</CreateContact>
+  <UpdateContact>false</UpdateContact>
+</Crm>
